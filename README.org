@@ -1,9 +1,0 @@
-* Yahoo Weather CLI-ent
-
-*Rust-lang* powered /CLI/-client for /Yahoo Weather API/
-
-** Features:
-*** DONE Main functionality (requesting of weather forecast)
-*** TODO CLI-options
-*** TODO Configuration file
-*** TODO Other data sources
