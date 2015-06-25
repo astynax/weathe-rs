@@ -6,6 +6,7 @@ use std::fmt;
 use std::io::Read;
 
 use hyper::client::Client;
+use hyper::client::response::Response;
 use hyper::status::StatusCode;
 
 use xml::attribute::OwnedAttribute;
@@ -21,9 +22,9 @@ enum TempUnit {
 
 impl fmt::Display for TempUnit {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", match self {
-            &TempUnit::Celsius   => "°C",
-            &TempUnit::Farenheit => "°F"
+        write!(f, "{}", match *self {
+            TempUnit::Celsius   => "°C",
+            TempUnit::Farenheit => "°F"
         })
     }
 }
@@ -42,7 +43,7 @@ impl fmt::Display for WeatherInfo {
 }
 
 
-fn request_weather(city: String, unit: TempUnit) -> Option<Box<Read>> {
+fn request_weather(city: String, unit: TempUnit) -> Option<Response> {
     let mut client = Client::new();
     let res = client.get(
         &("http://weather.yahooapis.com/forecastrss".to_string()
@@ -50,24 +51,26 @@ fn request_weather(city: String, unit: TempUnit) -> Option<Box<Read>> {
           + "&u=" + match unit {
               TempUnit::Celsius   => "c",
               TempUnit::Farenheit => "f"
-          }
-          )).send().unwrap();
-
-    if res.status == StatusCode::Ok {
-        Some(Box::new(res))
-    } else {
-        None
-    }
+          }))
+        .send()
+        .ok();
+    res.and_then(|res| {
+        if res.status == StatusCode::Ok {
+            Some(res)
+        } else {
+            None
+        }
+    })
 }
 
 
-fn parse_weather(xml: Box<Read>) -> Option<WeatherInfo> {
+fn parse_weather<R: Read>(xml: R) -> Option<WeatherInfo> {
 
     fn get_attr(name: &str, attrs: &Vec<OwnedAttribute>) -> Option<String> {
         attrs.iter()
             .find(|&att| {
-                let &OwnedAttribute { name: OwnedName { local_name: ref n, ..},
-                                      ..} = att;
+                let OwnedAttribute { name: OwnedName { local_name: ref n, ..},
+                                     ..} = *att;
                 n == name
             })
             .map(|a| { a.value.clone() })
