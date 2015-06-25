@@ -1,9 +1,12 @@
+extern crate docopt;
 extern crate hyper;
 extern crate xml;
 
 use std::borrow::Borrow;
 use std::fmt;
 use std::io::Read;
+
+use docopt::Docopt;
 
 use hyper::client::Client;
 use hyper::client::response::Response;
@@ -15,16 +18,31 @@ use xml::reader::events::XmlEvent;
 use xml::reader;
 
 
+static USAGE: &'static str = "
+Usage: weathe-rs [-f] [<city_id>]
+       weathe-rs -h
+
+Options:
+    -h, --help         Show this message
+    -f, --fahrenheits  Show the temperature in the degrees of the Fahrenheit
+                       (instead of the Celsius)
+";
+
+static DEFAULT_CITY: &'static str = "2121267"; // Kazan' (Russia)
+
+
+// --------------------- Data Types ----------------------------------
+
 enum TempUnit {
     Celsius,
-    Farenheit,
+    Fahrenheit,
 }
 
 impl fmt::Display for TempUnit {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", match *self {
-            TempUnit::Celsius   => "°C",
-            TempUnit::Farenheit => "°F"
+            TempUnit::Celsius    => "°C",
+            TempUnit::Fahrenheit => "°F"
         })
     }
 }
@@ -42,6 +60,8 @@ impl fmt::Display for WeatherInfo {
     }
 }
 
+// -------------------------------------------------------------------
+
 
 fn request_weather(city: String, unit: TempUnit) -> Option<Response> {
     let mut client = Client::new();
@@ -49,8 +69,8 @@ fn request_weather(city: String, unit: TempUnit) -> Option<Response> {
         &("http://weather.yahooapis.com/forecastrss".to_string()
           + "?w=" + &city
           + "&u=" + match unit {
-              TempUnit::Celsius   => "c",
-              TempUnit::Farenheit => "f"
+              TempUnit::Celsius    => "c",
+              TempUnit::Fahrenheit => "f"
           }))
         .send()
         .ok();
@@ -95,7 +115,7 @@ fn parse_weather<R: Read>(xml: R) -> Option<WeatherInfo> {
                         unit = get_attr("temperature", atts).map(|u| {
                             match u.borrow() {
                                 "C" => TempUnit::Celsius,
-                                "F" => TempUnit::Farenheit,
+                                "F" => TempUnit::Fahrenheit,
                                 _  => panic!("Unknown TempUnit!")
                             }
                         })},
@@ -125,8 +145,23 @@ fn parse_weather<R: Read>(xml: R) -> Option<WeatherInfo> {
 
 
 fn main() {
-    request_weather("2121267".to_string(),
-                    TempUnit::Celsius)
+    let args = Docopt::new(USAGE)
+        .and_then(|d| { d.parse() })
+        .unwrap_or_else(|e| { e.exit() });
+
+    let units =
+        if args.get_bool("-f") {
+            TempUnit::Fahrenheit
+        } else {
+            TempUnit::Celsius
+        };
+
+    let city = ({
+        let arg = args.get_str("<city_id>");
+        if arg == "" { DEFAULT_CITY } else { arg }
+    }).to_string();
+
+    request_weather(city, units)
         .and_then(parse_weather)
         .map_or_else(|| { println!("Oops!") },
                      |w| { println!("{}", w) })

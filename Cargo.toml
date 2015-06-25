@@ -4,7 +4,7 @@ version = "0.1.0"
 authors = ["Aleksey Pirogov <astynax84@gmail.com>"]
 
 [dependencies]
-#docopt = "*"
+docopt = "*"
 hyper = "*"
 #toml = "*"
 xml-rs = "*"
