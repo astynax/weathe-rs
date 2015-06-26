@@ -23,3 +23,10 @@ $ target/release/weathe-rs --help
 Usage: weathe-rs ...
 ...
 ```
+
+### OS-level requirements (build time only)
+
+```sh
+$ sudo apt-get install libssl-dev
+```
+
