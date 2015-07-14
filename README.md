@@ -6,7 +6,7 @@
 
 - Main functionality (requesting of weather forecast)
 - CLI-options
-- **TODO** Configuration file
+- Configuration file
 - **TODO** Other data sources
 
 ### Installation and usage

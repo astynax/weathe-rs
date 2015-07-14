@@ -1,10 +1,12 @@
 extern crate docopt;
 extern crate hyper;
 extern crate xml;
+extern crate toml;
 
 use std::borrow::Borrow;
 use std::fmt;
 use std::io::Read;
+use std::io::{Error, ErrorKind};
 
 use docopt::Docopt;
 
@@ -33,6 +35,7 @@ static DEFAULT_CITY: &'static str = "2121267"; // Kazan' (Russia)
 
 // --------------------- Data Types ----------------------------------
 
+#[derive(Clone)]
 enum TempUnit {
     Celsius,
     Fahrenheit,
@@ -60,8 +63,26 @@ impl fmt::Display for WeatherInfo {
     }
 }
 
-// -------------------------------------------------------------------
 
+struct Configuration {
+    city: Option<String>,
+    units: Option<TempUnit>,
+}
+
+impl Configuration {
+    fn or(&self, other: Configuration) -> Configuration {
+        Configuration {
+            city: other.city.or(self.city.clone()),
+            units: other.units.or(self.units.clone())
+        }
+    }
+
+    fn unwrap(&self) -> (String, TempUnit) {
+        (self.city.clone().unwrap(), self.units.clone().unwrap())
+    }
+}
+
+// -------------------------------------------------------------------
 
 fn request_weather(city: String, unit: TempUnit) -> Option<Response> {
     let mut client = Client::new();
@@ -144,22 +165,82 @@ fn parse_weather<R: Read>(xml: R) -> Option<WeatherInfo> {
 }
 
 
-fn main() {
+fn get_options() -> Configuration {
     let args = Docopt::new(USAGE)
         .and_then(|d| { d.parse() })
         .unwrap_or_else(|e| { e.exit() });
 
     let units =
         if args.get_bool("-f") {
-            TempUnit::Fahrenheit
+            Some(TempUnit::Fahrenheit)
         } else {
-            TempUnit::Celsius
+            None
         };
 
-    let city = ({
+    let city = {
         let arg = args.get_str("<city_id>");
-        if arg == "" { DEFAULT_CITY } else { arg }
-    }).to_string();
+        if arg == "" { None } else { Some(arg.to_string()) }
+    };
+
+    Configuration { city: city, units: units }
+}
+
+
+fn get_config() -> Configuration {
+    let home = std::env::home_dir().unwrap_or_else(
+        || { panic!("Can't get $HOME") });
+
+    let cfg_path = home.as_path().join(".config").join(".weathe-rs");
+
+    std::fs::File::open(cfg_path)
+        .and_then(|mut x| {
+            let mut content = String::new();
+            x.read_to_string(&mut content).and_then(|_| {
+                toml::Parser::new(content.borrow())
+                    .parse()
+                    .and_then(|root| {
+                        match root.get("params") {
+                            Some(&toml::Value::Table(ref t)) =>
+                                Some(t.clone()),
+                            _ => None
+                        }
+                    })
+                    .and_then(|params| {
+                        let city = match params.get("city") {
+                            Some(&toml::Value::Integer(ref s)) =>
+                                Some(s.to_string()),
+                            _ => None
+                        };
+                        let units = match params.get("fahrenheits") {
+                            Some(&toml::Value::Boolean(ref b)) =>
+                                Some(if *b {
+                                    TempUnit::Fahrenheit
+                                } else {
+                                    TempUnit::Celsius }),
+                            _ => None
+                        };
+                        Some(Configuration { city: city, units: units })
+                    })
+                    .ok_or(Error::new(ErrorKind::Other,
+                                      "Can't parse the config"))
+            })
+        }).unwrap_or_else(|e| {
+            if e.raw_os_error() != Some(2) { // file not found
+                panic!("Config parsing error: {:?}\n", e)
+            } else {
+                Configuration { city: None, units: None }
+            }
+        })
+}
+
+
+fn main() {
+    let (city, units) = Configuration {
+        city: Some(DEFAULT_CITY.to_string()),
+        units: Some(TempUnit::Celsius)}
+        .or(get_config())
+        .or(get_options())
+        .unwrap();
 
     request_weather(city, units)
         .and_then(parse_weather)

@@ -6,5 +6,5 @@ authors = ["Aleksey Pirogov <astynax84@gmail.com>"]
 [dependencies]
 docopt = "*"
 hyper = "*"
-#toml = "*"
+toml = "*"
 xml-rs = "*"
