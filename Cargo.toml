@@ -1,5 +1,5 @@
 [package]
-name = "weathe-rs"
+name = "weathe_rs"
 version = "0.1.0"
 authors = ["Aleksey Pirogov <astynax84@gmail.com>"]
 

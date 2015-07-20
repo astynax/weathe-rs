@@ -4,7 +4,6 @@ extern crate xml;
 extern crate toml;
 
 use std::borrow::Borrow;
-use std::fmt;
 use std::io::Read;
 use std::io::{Error, ErrorKind};
 
@@ -19,6 +18,12 @@ use xml::name::OwnedName;
 use xml::reader::events::XmlEvent;
 use xml::reader;
 
+extern crate weathe_rs;
+
+use weathe_rs::types::TempUnit;
+use weathe_rs::types::WeatherInfo;
+use weathe_rs::types::Configuration;
+
 
 static USAGE: &'static str = "
 Usage: weathe-rs [-f] [<city_id>]
@@ -31,55 +36,6 @@ Options:
 ";
 
 static DEFAULT_CITY: &'static str = "2121267"; // Kazan' (Russia)
-
-
-// --------------------- Data Types ----------------------------------
-#[derive(Clone)]
-enum TempUnit {
-    Celsius,
-    Fahrenheit,
-}
-
-impl fmt::Display for TempUnit {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", match *self {
-            TempUnit::Celsius    => "°C",
-            TempUnit::Fahrenheit => "°F"
-        })
-    }
-}
-
-
-struct WeatherInfo {
-    status: String,
-    degrees: i8,
-    unit: TempUnit
-}
-
-impl fmt::Display for WeatherInfo {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}{}, {}", self.degrees, self.unit, self.status)
-    }
-}
-
-
-struct Configuration {
-    city: Option<String>,
-    units: Option<TempUnit>,
-}
-
-impl Configuration {
-    fn or(&self, other: Configuration) -> Configuration {
-        Configuration {
-            city: other.city.or(self.city.clone()),
-            units: other.units.or(self.units.clone())
-        }
-    }
-
-    fn unwrap(&self) -> (String, TempUnit) {
-        (self.city.clone().unwrap(), self.units.clone().unwrap())
-    }
-}
 
 // -------------------------------------------------------------------
 
@@ -156,9 +112,7 @@ fn parse_weather<R: Read>(xml: R) -> Option<WeatherInfo> {
 
     match (condition, unit) {
         (Some((s, d)), Some(u)) =>
-            Some(WeatherInfo { status: s,
-                               degrees: d,
-                               unit: u }),
+            Some(WeatherInfo::new(s, d, u)),
         _ => None
     }
 }
@@ -181,7 +135,7 @@ fn get_options() -> Configuration {
         if arg == "" { None } else { Some(arg.to_string()) }
     };
 
-    Configuration { city: city, units: units }
+    Configuration::new(city, units)
 }
 
 
@@ -217,7 +171,7 @@ fn get_config() -> Configuration {
                                     TempUnit::Celsius }),
                             _ => None
                         };
-                        Some(Configuration { city: city, units: units })
+                        Some(Configuration::new(city, units))
                     })
                     .ok_or(Error::new(ErrorKind::Other,
                                       "Can't parse the config"))
@@ -226,18 +180,18 @@ fn get_config() -> Configuration {
             if e.raw_os_error() != Some(2) { // file not found
                 panic!("Config parsing error: {:?}\n", e)
             } else {
-                Configuration { city: None, units: None }
+                Configuration::new(None, None)
             }
         })
 }
 
 
 fn main() {
-    let (city, units) = Configuration {
-        city: Some(DEFAULT_CITY.to_string()),
-        units: Some(TempUnit::Celsius)}
-        .or(get_config())
-        .or(get_options())
+    let (city, units) = Configuration::new(
+        Some(DEFAULT_CITY.to_string()),
+        Some(TempUnit::Celsius))
+        .apply(get_config())
+        .apply(get_options())
         .unwrap();
 
     request_weather(city, units)
