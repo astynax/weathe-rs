@@ -34,7 +34,6 @@ static DEFAULT_CITY: &'static str = "2121267"; // Kazan' (Russia)
 
 
 // --------------------- Data Types ----------------------------------
-
 #[derive(Clone)]
 enum TempUnit {
     Celsius,
@@ -187,8 +186,7 @@ fn get_options() -> Configuration {
 
 
 fn get_config() -> Configuration {
-    let home = std::env::home_dir().unwrap_or_else(
-        || { panic!("Can't get $HOME") });
+    let home = std::env::home_dir().expect("Can't get $HOME");
 
     let cfg_path = home.as_path().join(".config").join(".weathe-rs");
 
