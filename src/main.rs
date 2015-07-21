@@ -1,5 +1,7 @@
 extern crate weathe_rs;
 
+use std::process;
+
 use weathe_rs::types::{Configuration, TempUnit};
 use weathe_rs::environ;
 use weathe_rs::providers::{get_provider};
@@ -12,7 +14,10 @@ fn main() {
         .apply(environ::get_options())
         .get_weather_by(get_provider)
     {
-        Err(e) => println!("Error: {}", e),
+        Err(e) => {
+            println!("Error: {}", e);
+            process::exit(1);
+        },
         Ok(w) => println!("{}", w)
     }
 }
