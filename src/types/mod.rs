@@ -2,6 +2,7 @@
 
 use std::fmt;
 
+
 /// Temperature Units
 #[derive(Clone)]
 pub enum TempUnit {
@@ -17,6 +18,7 @@ impl fmt::Display for TempUnit {
         })
     }
 }
+
 
 /// Weather Forecast information
 pub struct WeatherInfo {
@@ -39,28 +41,53 @@ impl fmt::Display for WeatherInfo {
     }
 }
 
+
+/// Result of getting of the weather info
+pub type WeatherResult = Result<WeatherInfo, String>;
+
+/// Weather data provider
+pub type WeatherProvider =
+    fn(String, TempUnit) -> WeatherResult;
+
+
 /// Configuration of the weather forecast
 pub struct Configuration {
     city: Option<String>,
     units: Option<TempUnit>,
+    provider: Option<String>,
 }
 
 impl Configuration {
-    pub fn new(city: Option<String>, units: Option<TempUnit>) -> Configuration {
-        Configuration { city: city,
-                        units: units }
+    pub fn new(city: Option<String>,
+               units: Option<TempUnit>,
+               provider: Option<String>) -> Configuration {
+        Configuration {
+            city: city,
+            units: units,
+            provider: provider
+        }
     }
 
     pub fn apply(&self, other: Configuration) -> Configuration {
         Configuration {
             city: other.city.or(self.city.clone()),
-            units: other.units.or(self.units.clone())
+            units: other.units.or(self.units.clone()),
+            provider: other.provider.or(self.provider.clone())
         }
     }
 
-    pub fn unwrap(&self) -> (String, TempUnit) {
-        let city = self.city.clone().expect("No CityID configured!");
-        let units = self.units.clone().expect("No temp unit configured!");
-        (city, units)
+    pub fn get_weather_by(&self,
+                          get_provider: fn(String) -> Option<WeatherProvider>)
+                         -> WeatherResult {
+        self.provider.clone().map_or(
+            Err("No provider specified!".to_string()),
+            |prov| get_provider(prov)
+                .ok_or("Unknown provider!".to_string())
+                .and_then(
+                    |prov| self.city.clone().map_or(
+                        Err("No city specified!".to_string()),
+                        |city| self.units.clone().map_or(
+                            Err("No units specified!".to_string()),
+                            |units| prov(city, units)))))
     }
 }

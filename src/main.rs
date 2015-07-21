@@ -1,13 +1,8 @@
-extern crate docopt;
 extern crate hyper;
 extern crate xml;
-extern crate toml;
 
 use std::borrow::Borrow;
 use std::io::Read;
-use std::io::{Error, ErrorKind};
-
-use docopt::Docopt;
 
 use hyper::client::Client;
 use hyper::client::response::Response;
@@ -20,27 +15,13 @@ use xml::reader;
 
 extern crate weathe_rs;
 
-use weathe_rs::types::TempUnit;
-use weathe_rs::types::WeatherInfo;
-use weathe_rs::types::Configuration;
+use weathe_rs::types::{TempUnit, WeatherInfo, Configuration,
+                       WeatherResult, WeatherProvider};
+use weathe_rs::environ;
 
-
-static USAGE: &'static str = "
-Usage: weathe-rs [-f] [<city_id>]
-       weathe-rs -h
-
-Options:
-    -h, --help         Show this message
-    -f, --fahrenheits  Show the temperature in the degrees of the Fahrenheit
-                       (instead of the Celsius)
-";
-
-static DEFAULT_CITY: &'static str = "2121267"; // Kazan' (Russia)
-
-// -------------------------------------------------------------------
 
 fn request_weather(city: String, unit: TempUnit) -> Option<Response> {
-    let mut client = Client::new();
+    let client = Client::new();
     let res = client.get(
         &("http://weather.yahooapis.com/forecastrss".to_string()
           + "?w=" + &city
@@ -118,84 +99,24 @@ fn parse_weather<R: Read>(xml: R) -> Option<WeatherInfo> {
 }
 
 
-fn get_options() -> Configuration {
-    let args = Docopt::new(USAGE)
-        .and_then(|d| { d.parse() })
-        .unwrap_or_else(|e| { e.exit() });
-
-    let units =
-        if args.get_bool("-f") {
-            Some(TempUnit::Fahrenheit)
-        } else {
-            None
-        };
-
-    let city = {
-        let arg = args.get_str("<city_id>");
-        if arg == "" { None } else { Some(arg.to_string()) }
-    };
-
-    Configuration::new(city, units)
-}
-
-
-fn get_config() -> Configuration {
-    let home = std::env::home_dir().expect("Can't get $HOME");
-
-    let cfg_path = home.as_path().join(".config").join(".weathe-rs");
-
-    std::fs::File::open(cfg_path)
-        .and_then(|mut x| {
-            let mut content = String::new();
-            x.read_to_string(&mut content).and_then(|_| {
-                toml::Parser::new(content.borrow())
-                    .parse()
-                    .and_then(|root| {
-                        match root.get("params") {
-                            Some(&toml::Value::Table(ref t)) =>
-                                Some(t.clone()),
-                            _ => None
-                        }
-                    })
-                    .and_then(|params| {
-                        let city = match params.get("city") {
-                            Some(&toml::Value::Integer(ref s)) =>
-                                Some(s.to_string()),
-                            _ => None
-                        };
-                        let units = match params.get("fahrenheits") {
-                            Some(&toml::Value::Boolean(ref b)) =>
-                                Some(if *b {
-                                    TempUnit::Fahrenheit
-                                } else {
-                                    TempUnit::Celsius }),
-                            _ => None
-                        };
-                        Some(Configuration::new(city, units))
-                    })
-                    .ok_or(Error::new(ErrorKind::Other,
-                                      "Can't parse the config"))
-            })
-        }).unwrap_or_else(|e| {
-            if e.raw_os_error() != Some(2) { // file not found
-                panic!("Config parsing error: {:?}\n", e)
-            } else {
-                Configuration::new(None, None)
-            }
-        })
+fn yahoo_weather(c: String, u: TempUnit) -> WeatherResult {
+    request_weather(c, u)
+        .and_then(parse_weather)
+        .ok_or("Oops!".to_string())
 }
 
 
 fn main() {
-    let (city, units) = Configuration::new(
-        Some(DEFAULT_CITY.to_string()),
-        Some(TempUnit::Celsius))
-        .apply(get_config())
-        .apply(get_options())
-        .unwrap();
-
-    request_weather(city, units)
-        .and_then(parse_weather)
-        .map_or_else(|| { println!("Oops!") },
-                     |w| { println!("{}", w) })
+    fn get_provider(_name: String) -> Option<WeatherProvider> {
+        Some(yahoo_weather)
+    };
+    match Configuration::new(
+        None, Some(TempUnit::Celsius), Some("yahoo".to_string()))
+        .apply(environ::get_config())
+        .apply(environ::get_options())
+        .get_weather_by(get_provider)
+    {
+        Err(e) => println!("Error: {}", e),
+        Ok(w) => println!("{}", w)
+    }
 }
