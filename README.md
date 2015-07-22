@@ -7,7 +7,9 @@
 - Main functionality (requesting of weather forecast)
 - CLI-options
 - Configuration file
-- **TODO** Other data sources
+- Data sources
+    - [Yahoo Weather API](https://developer.yahoo.com/weather/)
+    - [OpenWeatherMap](http://openweathermap.org/api)
 
 ### Installation and usage
 
@@ -16,10 +18,10 @@ $ cargo build --release
     Compiling ...
 ...
 
-$ target/release/weathe-rs
+$ target/release/weathe_rs yahoo 524901
 21°C, Fair  # or smth like this
 
-$ target/release/weathe-rs --help
+$ target/release/weathe_rs --help
 Usage: weathe-rs ...
 ...
 ```
