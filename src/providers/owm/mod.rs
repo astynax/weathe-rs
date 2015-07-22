@@ -15,24 +15,22 @@ fn parse_weather(raw: String, units: TempUnit) -> WeatherResult {
         |j| {
             let temperature = j.find_path(&["main", "temp"]).and_then(
                 |t| t.as_f64());
-            j.as_object().and_then(
-                |o| {
-                    let description = o.get("weather").and_then(
-                        |j| j.as_array().and_then(
-                            |a| a[0].as_object().and_then(
-                                |o| o.get("description").and_then(
-                                    |d| d.as_string()))));
-
-                    description.and_then(
-                        |d| temperature.and_then(
-                            |t| Some(WeatherInfo::new(
-                                d.to_string(), t as i8, units))))
-                })
+            let description = j.as_object().and_then(
+                |o| o.get("weather").and_then(
+                    |j| j.as_array().and_then(
+                        |a| a[0].as_object().and_then(
+                            |o| o.get("description").and_then(
+                                |d| d.as_string())))));
+            description.and_then(
+                |d| temperature.and_then(
+                    |t| Some(WeatherInfo::new(
+                        d.to_string(), t as i8, units))))
         })
         .ok_or("Foo!".to_string())
 }
 
 
+/// Public ``WeatherProvider`` for OpenWeatherMap
 pub fn owm_weather(city: String, units: TempUnit) -> WeatherResult {
     let mut content = String::new();
     if request(
