@@ -1,14 +1,8 @@
 //! # Weather provider using *Yahoo Weather API*
 
-extern crate hyper;
 extern crate xml;
 
 use std::borrow::Borrow;
-use std::io::Read;
-
-use self::hyper::client::Client;
-use self::hyper::client::response::Response;
-use self::hyper::status::StatusCode;
 
 use self::xml::attribute::OwnedAttribute;
 use self::xml::name::OwnedName;
@@ -16,30 +10,10 @@ use self::xml::reader::events::XmlEvent;
 use self::xml::reader;
 
 use types::{TempUnit, WeatherInfo, WeatherResult};
+use providers::request;
 
 
-fn request_weather(city: String, unit: TempUnit) -> Option<Response> {
-    let client = Client::new();
-    let res = client.get(
-        &("http://weather.yahooapis.com/forecastrss".to_string()
-          + "?w=" + &city
-          + "&u=" + match unit {
-              TempUnit::Celsius    => "c",
-              TempUnit::Fahrenheit => "f"
-          }))
-        .send()
-        .ok();
-    res.and_then(|res| {
-        if res.status == StatusCode::Ok {
-            Some(res)
-        } else {
-            None
-        }
-    })
-}
-
-
-fn parse_weather<R: Read>(xml: R) -> Option<WeatherInfo> {
+fn parse_weather(xml: &String) -> Option<WeatherInfo> {
 
     fn get_attr(name: &str, attrs: &Vec<OwnedAttribute>) -> Option<String> {
         attrs.iter()
@@ -51,10 +25,7 @@ fn parse_weather<R: Read>(xml: R) -> Option<WeatherInfo> {
             .map(|a| { a.value.clone() })
     }
 
-    let cfg = reader::config::ParserConfig::new()
-        .trim_whitespace(true)
-        .ignore_comments(true);
-    let mut rdr = reader::EventReader::with_config(xml, cfg);
+    let mut rdr = reader::EventReader::from_str((*xml).borrow());
 
     let mut condition: Option<(String, i8)> = None;
     let mut unit: Option<TempUnit> = None;
@@ -98,8 +69,19 @@ fn parse_weather<R: Read>(xml: R) -> Option<WeatherInfo> {
 
 
 /// Public ``WeatherProvider`` for Yahoo Weather API
-pub fn yahoo_weather(c: String, u: TempUnit) -> WeatherResult {
-    request_weather(c, u)
-        .and_then(parse_weather)
-        .ok_or("Oops!".to_string())
+pub fn yahoo_weather(city: String, units: TempUnit) -> WeatherResult {
+    let mut content = String::new();
+    if request(
+        "http://weather.yahooapis.com/forecastrss".to_string()
+            + "?w=" + &city
+            + "&u=" + match units {
+                TempUnit::Celsius    => "c",
+                TempUnit::Fahrenheit => "f"
+            },
+        &mut content) {
+        parse_weather(&content)
+            .ok_or("Can't get info from Yahoo API!".to_string())
+    } else {
+        Err("Can't request the data!".to_string())
+    }
 }
