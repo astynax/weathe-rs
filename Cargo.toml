@@ -4,8 +4,8 @@ version = "0.1.0"
 authors = ["Aleksey Pirogov <astynax84@gmail.com>"]
 
 [dependencies]
-docopt = "*"
-hyper = "*"
-toml = "*"
-xml-rs = "*"
-rustc-serialize = "*"
+docopt = "0.6.78"
+hyper = "0.8.0"
+toml = "0.1.28"
+xml-rs = "0.3"
+rustc-serialize = "0.3.18"

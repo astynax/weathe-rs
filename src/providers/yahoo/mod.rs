@@ -6,7 +6,7 @@ use std::borrow::Borrow;
 
 use self::xml::attribute::OwnedAttribute;
 use self::xml::name::OwnedName;
-use self::xml::reader::events::XmlEvent;
+use self::xml::reader::XmlEvent;
 use self::xml::reader;
 
 use types::{TempUnit, WeatherInfo, WeatherResult};
@@ -32,10 +32,10 @@ fn parse_weather(xml: &String) -> Option<WeatherInfo> {
 
     loop {
         match rdr.next() {
-            XmlEvent::StartElement {
+            Ok(XmlEvent::StartElement {
                 name: OwnedName { local_name: ref n, .. },
                 attributes: ref atts,
-                ..} => {
+                ..}) => {
                 match n.borrow() {
                     "units" => {
                         unit = get_attr("temperature", atts).map(|u| {
@@ -56,7 +56,8 @@ fn parse_weather(xml: &String) -> Option<WeatherInfo> {
                     _ => (),
                 }
             }
-            XmlEvent::EndDocument | XmlEvent::Error(..) => break,
+            Ok(XmlEvent::EndDocument) => break,
+            Err(_) => break,
             _ => (),
         }
     }
