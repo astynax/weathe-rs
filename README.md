@@ -8,7 +8,7 @@
 - CLI-options
 - Configuration file
 - Data sources
-    - [Yahoo Weather API](https://developer.yahoo.com/weather/)
+    - [Yahoo Weather API](https://developer.yahoo.com/weather/) (doesn't work anymore, need some actualization :( )
     - [OpenWeatherMap](http://openweathermap.org/api)
 
 ### Installation and usage
