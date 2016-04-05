@@ -19,7 +19,7 @@ pub fn get_provider(name: String) -> Option<WeatherProvider> {
     match name.borrow() {
         "yahoo" => Some(yahoo_weather),
         "owm" => Some(owm_weather),
-        _ => None
+        _ => None,
     }
 }
 
@@ -28,10 +28,11 @@ pub fn request(url: String, out: &mut String) -> bool {
     let client = Client::new();
     let res = client.get(&url).send().ok();
     res.map(|mut res| {
-        if res.status == StatusCode::Ok {
-            res.read_to_string(out).is_ok()
-        } else {
-            false
-        }
-    }).unwrap_or(false)
+           if res.status == StatusCode::Ok {
+               res.read_to_string(out).is_ok()
+           } else {
+               false
+           }
+       })
+       .unwrap_or(false)
 }
