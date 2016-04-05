@@ -18,7 +18,7 @@ $ cargo build --release
     Compiling ...
 ...
 
-$ target/release/weathe_rs yahoo 524901
+$ target/release/weathe_rs owm 524901
 21°C, Fair  # or smth like this
 
 $ target/release/weathe_rs --help
