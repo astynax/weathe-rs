@@ -1,5 +1,7 @@
 # Yahoo Weather CLI-ent
 
+[![Clippy Linting Result](https://clippy.bashy.io/github/astynax/weathe-rs/master/badge.svg)](https://clippy.bashy.io/github/astynax/weathe-rs/master/log)
+
 **Rust-lang** powered *CLI*-client for *Yahoo Weather API*
 
 ### Features:
